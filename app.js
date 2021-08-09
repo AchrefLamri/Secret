@@ -3,6 +3,11 @@ const express = require('express');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
 const encrypt = require("mongoose-encryption");
+// Hash method 
+const md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
 const User = require('./model/user');
 
 
@@ -40,16 +45,23 @@ app.get('/register',(req,res)=>{
 
 // register New user
 app.post('/register',(req,res)=>{
-    let username = req.body.username,
-        password = req.body.password,
-        newUser = new User({email:username,password:password});
     
-    newUser.save()
-    .then(()=>{       
-        console.log('don :)')
-        res.render('secrets')
-    })
-    .catch((err)=>console.log(err))
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+        // Store hash in your password DB.
+        let    newUser = new User({
+            email:req.body.username,
+            password:hash
+        });
+        
+        newUser.save()
+        .then(()=>{       
+            console.log('don :)')
+            res.render('secrets')
+        })
+        .catch((err)=>console.log(err))
+    });
+    
+  
 })
 
 // Login to your account 
@@ -60,11 +72,15 @@ app.post('/login',(req,res)=>{
     User.findOne({email:username})
     .then(foundUser =>{
         if(foundUser){
-            if(foundUser.password === password){
-                res.render('secrets')
-            }else{
-                res.send('password is not correct try agin :(')
-            }
+            bcrypt.compare(password, foundUser.password)
+            .then((result)=> {
+                if(result){
+                    res.render('secrets')
+                }else{
+                    res.send('password is not correct try agin :(')
+                }
+            });
+        
         }else{
             res.send("Not Found :( plase register this user .")
         }
